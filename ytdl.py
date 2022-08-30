@@ -11,34 +11,48 @@ options.HELP_NOTE = 'Usage: python3 ytdl.py target link [OPTIONS]'
 audio_only = False
 playlist = False
 res = 'high'
+yt_tar = '.'
 
-def set_audio_only(*args):
-    """Download only in mp3 format"""
+def set_audio_only():
+    """
+    HELP: Download only in mp3 format
+    """
     global audio_only
     audio_only = True
 
-def set_playlist(*args):
-    """Download a whole playlist"""
+def set_playlist():
+    """
+    HELP: Download a whole playlist
+    """
     global playlist
     playlist = True
 
-def set_resolution_low(*args):
-    """Get lowest video resolution"""
+def set_resolution_low():
+    """
+    HELP: Get lowest video resolution
+    """
     global res
     res = "low"
 
-def set_resolution(*args):
-    """Set own resolution"""
+def set_resolution(resolution: 'resolution'):
+    """
+    HELP: Set own resolution
+    """
     global res
-    try:
-        res = args[0]
-    except:
-        sys.exit('Option requires argument: -r (--res)')
+    res = resolution
 
+def set_target(tar: 'target'):
+    """
+    HELP: Set the target
+    """
+    global yt_tar
+    yt_tar = tar.replace('\"', '')
+
+options.add('t', 'target', set_target)
 options.add('a', 'audio', set_audio_only)
 options.add('P', 'playlist', set_playlist)
 options.add('l', 'low', set_resolution_low)
-options.add('r', 'res', set_resolution, 'resolution')
+options.add('r', 'res', set_resolution)
 
 def main():
 
