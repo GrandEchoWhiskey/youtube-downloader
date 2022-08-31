@@ -4,7 +4,7 @@
 ### Prepare (optional):
 Best way to make this app working is to add an alias to .bashrc (linux) or any eqivalent.
 ```shell
-alias ytdl="python3 ~/PATH/ytdl.py ~/Downloads"
+alias ytdl="python3 ~/PATH/ytdl.py -t ~/Downloads"
 ```
 replace PATH with your path to the ytdl.py file, best way is to start from users home directory (~).
 
@@ -24,22 +24,24 @@ Done! Now you can enjoy the app.
 ### Usage:
 The app is terminal based so, everything has to be written in commands.
 ```
-ytdl link [OPTIONS]
+ytdl -s link [OPTIONS]
 ```
 
 And without the alias:
 ```
-python3 ~/PATH/ytdl.py ~/Downloads link [OPTIONS]
+python3 ~/PATH/ytdl.py -t ~/Downloads -s link [OPTIONS]
 ```
 
 There are a few options to choose from:
 short | long | description
 ---|---|---
 -h | --help | shows the help table
--P | --playlist | Download the whole playlist (Url must include 'list=')
+-p link | --playlist link | download the whole playlist (Url must include 'list=')
 -l | --low | download lowest resolution
 -r resolution | --res resolution | download in given resolution
 -a | --audio | download as mp3
+-t path | --target path | set target directory
+-s link | --source link | set source link
 
 As default the resolution is the highest
 
