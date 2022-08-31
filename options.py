@@ -4,9 +4,9 @@ SHORT_JUST = 10
 LONG_JUST = 15
 HELP_NOTE = 'Usage: python3 options.py -h'
 
-# --------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------
 # Start Option
-# --------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------
 
 class __option:
     def __init__(self, shortname:str, longname:str, func=()) -> None:
@@ -14,7 +14,7 @@ class __option:
         self.__long:str = longname
         self.__func = func
 
-    def __get__(self) -> dict:
+    def __get__(self, obj=None, objtype=None) -> dict:
         return {
             "long": self.string,
             "short": self.char,
@@ -30,14 +30,13 @@ class __option:
                 help_str = hs[6:]
                 break
         if type(help_str) != str:
-            help_str = ''
+            help_str = 'No description.'
         arg_str = ''
         if self.func != ():
             arg_str = ' '.join(list(map(lambda x: x.replace(' ', '-'), self.func.__annotations__.values())))
         short_str = f"-{self.char} {arg_str}"
         long_str = f"--{self.string} {arg_str}"
 
-        fnc_name = self.func.__doc__ if self.func.__doc__ else 'No description.'
         return f"{short_str.ljust(SHORT_JUST, ' ')} | {long_str.ljust(LONG_JUST, ' ')} | {help_str}"
 
     @property
@@ -60,10 +59,10 @@ class __option:
     def num_args_max(self):
         return len(self.func.__annotations__.values())
 
-# --------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------
 # End Option
 # Start Translator
-# --------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------
 
 class __translator:
 
@@ -145,9 +144,9 @@ class __translator:
     def options(self):
         return self.__options
 
-# --------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------
 # End Trnaslator
-# --------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------
 
 __t = __translator()
 
