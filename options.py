@@ -8,11 +8,20 @@ HELP_NOTE = 'Usage: python3 options.py -h'
 # Start Option
 # -------------------------------------------------------------------------
 
-class __option:
+class _option:
+
     def __init__(self, shortname:str, longname:str, func=()) -> None:
         self.__short:str = shortname
         self.__long:str = longname
         self.__func = func
+
+    def __eq__(self, other):
+        return self.char == other.char and \
+            self.string == other.string and \
+                self.func == other.func
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
     def __get__(self, obj=None, objtype=None) -> dict:
         return {
@@ -64,7 +73,7 @@ class __option:
 # Start Translator
 # -------------------------------------------------------------------------
 
-class __translator:
+class _translator:
 
     def __init__(self):
         self.__options = []
@@ -148,23 +157,23 @@ class __translator:
 # End Trnaslator
 # -------------------------------------------------------------------------
 
-__t = __translator()
+_t = _translator()
 
 def add(short, long, func=()):
-    __t.add(__option(short, long, func))
+    _t.add(_option(short, long, func))
 
 def exec():
-    __t.translate()
-    __t.run()
+    _t.translate()
+    _t.run()
 
-def __show_help():
+def _show_help():
     """
     HELP: Show syntax for usage of this app.
     """
-    print(HELP_NOTE)
-    print('OPTIONS:')
-    for tr in __t:
-        print(str(tr))
-    sys.exit(0)
+    res = HELP_NOTE
+    res += '\nOPTIONS:'
+    for tr in _t:
+        res += '\n' + str(tr)
+    sys.exit(res)
 
-add('h', 'help', __show_help)
+add('h', 'help', _show_help)
