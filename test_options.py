@@ -1,5 +1,3 @@
-from cgi import test
-from cgitb import reset
 import unittest
 import options
 import sys
