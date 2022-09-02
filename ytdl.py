@@ -79,12 +79,21 @@ def set_source(src: 'link'):
     yt_options['source'] = src
     links.append(src)
 
+def set_fromfile(file: 'file'):
+    """
+    HELP: Set file surce for links
+    """
+    with open(file, 'r') as f:
+        while l := f.readline():
+            links.append(l)
+
 options.add('t', 'target', set_target)
 options.add('s', 'source', set_source)
 options.add('a', 'audio', set_audio_only)
 options.add('p', 'playlist', set_playlist)
 options.add('l', 'low', set_resolution_low)
 options.add('r', 'res', set_resolution)
+options.add('f', 'file', set_fromfile)
 
 def main():
 
