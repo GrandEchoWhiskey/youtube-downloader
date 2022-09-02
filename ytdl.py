@@ -6,7 +6,14 @@ import options
 
 options.SHORT_JUST = 15
 options.LONG_JUST = 20
-options.HELP_NOTE = 'Usage: python3 ytdl.py [OPTIONS]'
+options.USAGE_NOTE = 'usage: python3 ytdl.py [options]'
+options.HELP_NOTE = 'Use: "python3 ytdl.py -h" for help.'
+
+def rename_file(name):
+    name = name.replace(' ', '-')
+    for char in '!@#$%^&*()+=<>,.?/\'\"\\|{}[]~`':
+        name = name.replace(char, '')
+    return name
 
 yt_options = {
     'audio_only': False,
@@ -23,6 +30,7 @@ def set_audio_only():
     HELP: Download only in mp3 format
     """
     yt_options['audio_only'] = True
+    set_resolution_low()
 
 def set_playlist(link: 'link'):
     """
@@ -80,13 +88,6 @@ options.add('r', 'res', set_resolution)
 
 def main():
 
-    try:
-        options.exec() 
-        if len(sys.argv) < 3:
-            raise Exception
-    except:
-        sys.exit('Use: "python3 ytdl.py -h" for help.')
-
     for i, url in enumerate(links):
         try:
             yt = pytube.YouTube(url, on_progress_callback=on_progress)
@@ -111,12 +112,13 @@ def main():
 
         try:
             outfile = stream.download(yt_options['target'])
-            if yt_options['audio_only']:
-                base, ext = os.path.splitext(outfile)
-                newfile = base + '.mp3'
-                os.rename(outfile, newfile)
+            head, tail = os.path.split(outfile)
+            base, ext = os.path.splitext(tail)
+            newfile = os.path.join(head, rename_file(base) + ('.mp3' if yt_options['audio_only'] else ext))
+            os.rename(outfile, newfile)
         except:
             sys.exit("Unable to save the file")
 
 if __name__ == "__main__":
+    options.exec()
     main()

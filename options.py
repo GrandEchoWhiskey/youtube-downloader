@@ -1,8 +1,17 @@
+from configparser import NoOptionError
 import sys
 
 SHORT_JUST = 10
 LONG_JUST = 15
-HELP_NOTE = 'Usage: python3 options.py -h'
+USAGE_NOTE = 'Usage: python3 options.py [options]'
+HELP_NOTE = 'Help: Type "python3 options.py -h" to get help.'
+
+# -------------------------------------------------------------------------
+# Exceptions
+# -------------------------------------------------------------------------
+
+class NoTranslationError(Exception): pass
+class ArgumentsError(Exception): pass
 
 # -------------------------------------------------------------------------
 # Start Option
@@ -129,7 +138,7 @@ class _translator:
                     self.__fncargs[key] = []
                     continue
 
-                sys.exit('No option named: ' + arg)
+                raise NoTranslationError(f'No option named: {arg}')
 
             if key in self.__fncargs.keys():
                 if len(self.__fncargs[key]) == 0:
@@ -147,7 +156,10 @@ class _translator:
             try:
                 func(*args)
             except TypeError as e:
-                sys.exit(f"--{key} {' '.join([x for i, x in enumerate(str(e).split(' ')) if i != 0])}")                            
+                if str(e).split(' ')[0] == func.__name__ + '()':
+                    raise ArgumentsError(f"--{key} {' '.join([x for i, x in enumerate(str(e).split(' ')) if i != 0])}")
+                else:
+                    raise e                          
 
     @property
     def options(self):
@@ -163,14 +175,21 @@ def add(short, long, func=()):
     _t.add(_option(short, long, func))
 
 def exec():
-    _t.translate()
-    _t.run()
+    try:
+        _t.translate()
+        _t.run()
+    except SystemExit as e:
+        sys.exit(e)
+    except (NoTranslationError, ArgumentsError) as e:
+        sys.exit(f"{e}\n{HELP_NOTE}")
+    except Exception as e:
+        raise e
 
 def _show_help():
     """
     HELP: Show syntax for usage of this app.
     """
-    res = HELP_NOTE
+    res = USAGE_NOTE
     res += '\nOPTIONS:'
     for tr in _t:
         res += '\n' + str(tr)
