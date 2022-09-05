@@ -1,5 +1,5 @@
-from configparser import NoOptionError
 import sys
+import inspect
 
 SHORT_JUST = 10
 LONG_JUST = 15
@@ -10,8 +10,8 @@ HELP_NOTE = 'Help: Type "python3 options.py -h" to get help.'
 # Exceptions
 # -------------------------------------------------------------------------
 
-class NoTranslationError(Exception): pass
-class ArgumentsError(Exception): pass
+class NoTranslationError(ValueError): pass
+class ArgumentsTypeError(TypeError): pass
 
 # -------------------------------------------------------------------------
 # Start Option
@@ -24,12 +24,12 @@ class _option:
         self.__long:str = longname
         self.__func = func
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         return self.char == other.char and \
             self.string == other.string and \
                 self.func == other.func
 
-    def __ne__(self, other):
+    def __ne__(self, other) -> bool:
         return not self.__eq__(other)
 
     def __get__(self, obj=None, objtype=None) -> dict:
@@ -40,18 +40,28 @@ class _option:
         }
 
     def __str__(self) -> str:
+        
         help_str = self.func.__doc__.replace('\t', '').split('\n')
         for hs in help_str:
+
             while hs.startswith(' '):
                 hs = hs[1:]
+
             if hs.startswith('HELP: '):
                 help_str = hs[6:]
                 break
+
         if type(help_str) != str:
             help_str = 'No description.'
+
         arg_str = ''
+
+        sig = inspect.signature(self.func).parameters
+        for k in sig.keys():
+            print(k if '=' not in str(sig[k]) else '[' + k + ']')
         if self.func != ():
             arg_str = ' '.join(list(map(lambda x: x.replace(' ', '-'), self.func.__annotations__.values())))
+
         short_str = f"-{self.char} {arg_str}"
         long_str = f"--{self.string} {arg_str}"
 
@@ -157,7 +167,7 @@ class _translator:
                 func(*args)
             except TypeError as e:
                 if str(e).split(' ')[0] == func.__name__ + '()':
-                    raise ArgumentsError(f"--{key} {' '.join([x for i, x in enumerate(str(e).split(' ')) if i != 0])}")
+                    raise ArgumentsTypeError(f"--{key} {' '.join([x for i, x in enumerate(str(e).split(' ')) if i != 0])}")
                 else:
                     raise e                          
 
@@ -175,13 +185,20 @@ def add(short, long, func=()):
     _t.add(_option(short, long, func))
 
 def exec():
+
     try:
         _t.translate()
         _t.run()
+
+    # Exit
     except SystemExit as e:
         sys.exit(e)
-    except (NoTranslationError, ArgumentsError) as e:
+
+    # Catch NoTranslationError and ArgumentsTypeError to exit with message
+    except (NoTranslationError, ArgumentsTypeError) as e:
         sys.exit(f"{e}\n{HELP_NOTE}")
+
+    # Pass Any other Exception
     except Exception as e:
         raise e
 
