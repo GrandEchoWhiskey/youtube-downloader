@@ -9,34 +9,27 @@ options.LONG_JUST = 20
 options.USAGE_NOTE = 'usage: python3 ytdl.py [options]'
 options.HELP_NOTE = 'Use: "python3 ytdl.py -h" for help.'
 
+links = []
+audio_only = False
+vid_resolution = 'high'
+vid_target = '.'
+
 def rename_file(name):
     name = name.replace(' ', '-')
     for char in '!@#$%^&*()+=<>,.?/\'\"\\|{}[]~`':
         name = name.replace(char, '')
     return name
 
-yt_options = {
-    'audio_only': False,
-    'resolution': 'high',
-    'target': '.',
-    'playlist': False,
-    'source': ''
-}
-
-links = []
-
-def set_audio_only():
-    """
-    HELP: Download only in mp3 format
-    """
-    yt_options['audio_only'] = True
+@options.option('a', 'audio')
+def set_audio():
+    """Set audio only mode (.mp3 files)"""
     set_resolution_low()
+    global audio_only
+    audio_only = True
 
-def set_playlist(link: 'link'):
-    """
-    HELP: Download a whole playlist
-    """
-    yt_options['playlist'] = True
+@options.option('p', 'playlist')
+def set_playlist(link):
+    """HELP: Download a whole playlist"""
     link = link.replace('\"', '').replace("https://", '')
     try:
         start = link.index('list=')
@@ -52,48 +45,36 @@ def set_playlist(link: 'link'):
     except Exception as e:
         sys.exit(f"Unable to set playlist: {e}")
     
-
+@options.option('l', 'low')
 def set_resolution_low():
-    """
-    HELP: Get lowest video resolution
-    """
-    yt_options['resolution'] = 'low'
+    """HELP: Get lowest video resolution"""
+    global resolution
+    resolution = 'low'
 
-def set_resolution(resolution: 'resolution'):
-    """
-    HELP: Set own resolution
-    """
-    yt_options['resolution'] = resolution
+@options.option('r', 'res')
+def set_resolution(resolution):
+    """HELP: Set own resolution"""
+    global vid_resolution
+    vid_resolution = resolution
 
-def set_target(tar: 'target'):
-    """
-    HELP: Set the target
-    """
-    yt_options['target'] = tar.replace('\"', '')
+@options.option('t', 'target')
+def set_target(path):
+    """HELP: Set the target"""
+    global vid_target
+    vid_target = path.replace('\"', '')
 
-def set_source(src: 'link'):
-    """
-    HELP: Set the source link
-    """
-    src = src.replace('\"', '').replace("https://", '')
-    yt_options['source'] = src
-    links.append(src)
+@options.option('s', 'source')
+def set_source(link):
+    """HELP: Set the source link"""
+    link = link.replace('\"', '').replace("https://", '')
+    links.append(link)
 
-def set_fromfile(file: 'file'):
-    """
-    HELP: Set file surce for links
-    """
-    with open(file, 'r') as f:
+@options.option('f', 'file')
+def set_fromfile(path):
+    """HELP: Set file source for links"""
+    with open(path, 'r') as f:
         while l := f.readline():
             links.append(l)
-
-options.add('t', 'target', set_target)
-options.add('s', 'source', set_source)
-options.add('a', 'audio', set_audio_only)
-options.add('p', 'playlist', set_playlist)
-options.add('l', 'low', set_resolution_low)
-options.add('r', 'res', set_resolution)
-options.add('f', 'file', set_fromfile)
 
 def main():
 
@@ -106,24 +87,24 @@ def main():
         
         print(f"{i+1}. {yt.title}".ljust(71, ' '))
         
-        if yt_options['resolution'] == 'high':
+        if vid_resolution == 'high':
             stream = ys.get_highest_resolution()
-        elif yt_options['resolution'] == 'low':
+        elif vid_resolution == 'low':
             stream = ys.get_lowest_resolution()
         else:
             try:
-                stream = ys.get_by_resolution(int(yt_options['resolution']))
+                stream = ys.get_by_resolution(int(vid_resolution))
             except:
-                sys.exit("Resolution: " + yt_options['resolution'] + " does not exist.")            
+                sys.exit("Resolution: " + vid_resolution + " does not exist.")            
 
-        if yt_options['audio_only']:
+        if audio_only:
             stream = ys.get_audio_only()
 
         try:
-            outfile = stream.download(yt_options['target'])
+            outfile = stream.download(vid_target)
             head, tail = os.path.split(outfile)
             base, ext = os.path.splitext(tail)
-            newfile = os.path.join(head, rename_file(base) + ('.mp3' if yt_options['audio_only'] else ext))
+            newfile = os.path.join(head, rename_file(base) + ('.mp3' if audio_only else ext))
             os.rename(outfile, newfile)
         except:
             sys.exit("Unable to save the file")
