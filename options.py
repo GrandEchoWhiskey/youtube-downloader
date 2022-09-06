@@ -17,21 +17,20 @@ class ParamError(TypeError): pass
 class OptionNameInUse(ValueError): pass
 class NoKeyError(ValueError): pass
 
-# Option set override add method to raise error if option in use
-class option_set(set):
-    def add(self, __element):
-        error_str = 'This option name is already in use!'
-        if __element.long in list(map(lambda x: x.long, self)):
-            raise OptionNameInUse(f'{error_str} ({__element.long})')
-        if __element.short in list(map(lambda x: x.short, self)):
-            raise OptionNameInUse(f'{error_str} ({__element.short})')
-        super().add(__element)
-
-# Global
-_opt_set = option_set()
+class var():
+    def __init__(self, vtype, value):
+        if type(value) != vtype: raise ValueError
+        self.__type = vtype
+        self.__val = value
+    def get(self): return self.__val
+    def set(self, value):
+        if type(value) != self.__type: raise ValueError
+        self.__val = value
+    def __str__(self):
+        return str(self.__val)
 
 # Parent root class
-class __root_option:
+class _root_option:
     def __init__(self, short:str, long:str) -> None:
         self.__short:str = short
         self.__long:str = long
@@ -52,7 +51,7 @@ class __root_option:
     def __str__(self): pass
 
 # Bool variable setter class
-class bool_option(__root_option):
+class bool_option(_root_option):
 
     def __init__(self, short:str, long:str, variable:list, description:str) -> None:
         self.__var = variable
@@ -98,7 +97,7 @@ class var_option(bool_option):
 
 
 # Function runner class
-class func_option(__root_option):
+class func_option(_root_option):
 
     def __init__(self, short:str, long:str, func:FunctionType) -> None:
         self.__func:FunctionType = func
@@ -152,6 +151,20 @@ class func_option(__root_option):
             if param.kind not in [param.POSITIONAL_OR_KEYWORD, param.VAR_POSITIONAL]:
                 raise ParamError
         return sig.parameters.copy()
+
+# Option set override add method to raise error if option in use
+class option_set(set):
+    def add(self, __element):
+        error_str = 'This option name is already in use!'
+        if not issubclass(type(__element), _root_option): raise ValueError
+        if __element.long in list(map(lambda x: x.long, self)):
+            raise OptionNameInUse(f'{error_str} ({__element.long})')
+        if __element.short in list(map(lambda x: x.short, self)):
+            raise OptionNameInUse(f'{error_str} ({__element.short})')
+        super().add(__element)
+
+# Global
+_opt_set = option_set()
 
 
 # Add new variable
@@ -256,3 +269,11 @@ def show_help():
     for o in sorted(_opt_set, key=lambda x: x.short):
         res += '\n' + str(o)
     sys.exit(res)
+
+
+a = var(str, 'sth')
+b = a
+b.set('nw')
+b = var(str, 'c')
+b.set('cd')
+print(a)
