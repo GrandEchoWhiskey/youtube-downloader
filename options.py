@@ -18,13 +18,10 @@ class OptionNameInUse(ValueError): pass
 class NoKeyError(ValueError): pass
 
 class var():
-    def __init__(self, vtype, value):
-        if type(value) != vtype: raise ValueError
-        self.__type = vtype
+    def __init__(self, value):
         self.__val = value
     def get(self): return self.__val
     def set(self, value):
-        if type(value) != self.__type: raise ValueError
         self.__val = value
     def __str__(self):
         return str(self.__val)
@@ -269,11 +266,3 @@ def show_help():
     for o in sorted(_opt_set, key=lambda x: x.short):
         res += '\n' + str(o)
     sys.exit(res)
-
-
-a = var(str, 'sth')
-b = a
-b.set('nw')
-b = var(str, 'c')
-b.set('cd')
-print(a)
