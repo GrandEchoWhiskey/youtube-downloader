@@ -1,4 +1,6 @@
 from collections import OrderedDict
+from enum import Enum
+from lib2to3.pgen2.token import OP
 from types import FunctionType
 import inspect
 import sys
@@ -13,45 +15,58 @@ SHOW_HELPNOTE_AFTER_ERROR = True
 VAR_OPT_DEF_DESC = 'Variable option'
 FNC_OPT_DEF_DESC = 'Run function'
 BOOL_OPT_DEF_DESC = 'Boolean option'
+DEFAULT_ARG_PLACEHOLDER = 'arg'
 
 HELP_STR_REC = 'HELP: '
 
-class NoTranslationError(ValueError): pass
-class ParamError(TypeError): pass
-class OptionNameInUse(ValueError): pass
-class NoKeyError(ValueError): pass
+class option_error(Enum):
+    NOT_OPTION = 'Element must be an _root_option subclass.'
+    NAME_IN_USE = 'This option name is already in use!'
+    ATERISK_TYPE = 'Aterisk option is only for list types.'
+    MULTI_ARG = 'Cannot use list, set, tuple or dict items.'
+    TYPE = 'Value does not match the type.'
+    PARAM_KEYWORD = 'Cannot use keyword function variables.'
+    NOT_VAR = 'Can only use var objects.'
+    ATERISK_MIDDLE = 'Cant put aterisk in the middle of args'
+    POSITIONAL_FIRST = 'Cant use required args after optional.'
+    SHORT_LONG_STR = 'Option long and short must be valid nonrepetive strings.'
+
+class OptionError(ValueError): pass
+class TranslationError(ValueError): pass
 
 class option_set(set):
     def add(self, __element):
-        error_str = 'This option name is already in use!'
-        if not issubclass(type(__element), _root_option): raise ValueError
+        if not issubclass(type(__element), _root_option): raise OptionError(option_error.NOT_OPTION)
         if __element.long in list(map(lambda x: x.long, self)):
-            raise OptionNameInUse(f'{error_str} ({__element.long})')
+            raise OptionError(f'{option_error.NAME_IN_USE} ({__element.long})')
         if __element.short in list(map(lambda x: x.short, self)):
-            raise OptionNameInUse(f'{error_str} ({__element.short})')
+            raise OptionError(f'{option_error.NAME_IN_USE} ({__element.short})')
         super().add(__element)
 
 _opt_set = option_set()
 
 class var:
-    def __init__(self, value, placeholder=None, vtype=None, optional=False, aterisk=False):
+    def __init__(self, value:any, placeholder:str=None, \
+        vtype:type=None, optional:bool=False, aterisk:bool=False):
         if aterisk and vtype not in [list, None]:
-            raise ValueError('Aterisk option is only for list types.')
+            raise OptionError(option_error.ATERISK_TYPE)
         if aterisk: vtype=list
         if not aterisk and vtype in [list, set, tuple, dict]:
-            raise ValueError('Cannot use list, set, tuple or dict items.')
+            raise OptionError(option_error.MULTI_ARG)
         if vtype != None and type(value) != vtype:
-            raise ValueError('Value does not match the type.')
-        self.__name = placeholder
-        self.__val = value
-        self.__vtype = vtype
-        self.__aterisk = aterisk
-        self.__optional = optional or aterisk
+            raise OptionError(option_error.TYPE)
+        self.__name:str = placeholder
+        self.__val:any = value
+        self.__vtype:type = vtype
+        self.__aterisk:bool = aterisk
+        self.__optional:bool = optional or aterisk
     def set(self, value):
         if self.__vtype != None and type(value) != self.__vtype:
-            raise ValueError('Value does not match the type.')
+            raise OptionError(option_error.TYPE)
         self.__val = value
-    def get(self): return self.__val
+    @property
+    def value(self): return self.__val
+    def __invert__(self): return self.__val
     def __str__(self): return str(self.__val)
     @property
     def optional(self): return self.__optional
@@ -62,15 +77,21 @@ class var:
     @property
     def vtype(self): return self.__vtype
 
+class boolean(var):
+    def __init__(self) -> None:
+        super().__init__(False, vtype=bool)
+
+def val(element:var): return element.vtype(element.value) if element.vtype else element.value
+
 class _root_option:
     def __init__(self, short:str, long:str, min_params:int, \
         max_params:int, str_params:str, description:str) -> None:
         self.__short:str = short
         self.__long:str = long
-        self.__max = max_params
-        self.__min = min_params
-        self.__str = str_params
-        self.__description = description
+        self.__max:int = max_params
+        self.__min:int = min_params
+        self.__str:str = str_params
+        self.__description:str = description
 
     @property
     def short(self) -> str: return self.__short
@@ -105,8 +126,8 @@ class _root_option:
 
 class bool_option(_root_option):
     def __init__(self, short:str, long:str, var_ptr:var, description:str=BOOL_OPT_DEF_DESC) -> None:
-        if var_ptr.vtype not in [bool, None]: raise ValueError
-        self.__var_ptr = var_ptr
+        if var_ptr.vtype not in [bool, None]: raise OptionError
+        self.__var_ptr:var = var_ptr
         super().__init__(short, long, 0, 0, '', description)
         _opt_set.add(self)
 
@@ -118,10 +139,10 @@ class func_option(_root_option):
     def __init__(self, short:str, long:str, func:FunctionType, description:str=None) -> None:
         self.__func:FunctionType = func
         self.__params: OrderedDict = self._params
-        min_params = self._min_params
-        max_params = self._max_params
-        str_params = self._param_str
-        description = description if description else self._description
+        min_params:int = self._min_params
+        max_params:int = self._max_params
+        str_params:str = self._param_str
+        description:str = description if description else self._description
         super().__init__(short, long, min_params, max_params, str_params, description)
         _opt_set.add(self)
 
@@ -167,29 +188,29 @@ class func_option(_root_option):
         sig = inspect.signature(self.func)
         for param in sig.parameters.values():
             if param.kind not in [param.POSITIONAL_OR_KEYWORD, param.VAR_POSITIONAL]:
-                raise ParamError('Cannot use keyword function variables.')
+                raise OptionError(option_error.PARAM_KEYWORD)
         return sig.parameters.copy()
 
 class var_option(_root_option):
     def __init__(self, short:str, long:str, *args, description:str=VAR_OPT_DEF_DESC) -> None:
-        if len(args) != len(set(args)) or not len(args): raise ValueError
+        if len(args) != len(set(args)) or not len(args): raise OptionError
         for arg in args:
-            if type(arg) != var: raise ValueError('Can only use var objects.')
-        self.__args = args
-        minmax = self._minmax
+            if type(arg) != var: raise OptionError(option_error.NOT_VAR)
+        self.__args:list = args
+        minmax:tuple = self._minmax
         super().__init__(short, long, minmax[0], minmax[1], self._str_params, description)
         _opt_set.add(self)
 
     @property
-    def args(self): return self.__args
+    def args(self) -> list: return self.__args
 
-    def __iter__(self): return iter(self.__args)
+    def __iter__(self) -> list: return iter(self.__args)
 
-    def __next__(self): return next(self.__args)
+    def __next__(self) -> var: return next(self.__args)
 
-    def __getitem__(self, item): return self.__args[item]
+    def __getitem__(self, item) -> var: return self.__args[item]
     
-    def __len__(self): return len(self.__args)
+    def __len__(self) -> int: return len(self.__args)
 
     @property
     def _minmax(self) -> tuple:
@@ -197,18 +218,18 @@ class var_option(_root_option):
         for i, arg in enumerate(self):
             if arg.aterisk:
                 if i == len(self)-1: return (required, -1)
-                raise ValueError('Cant put aterisk in the middle of args')
+                raise OptionError(option_error.ATERISK_MIDDLE)
             if arg.optional: used_optional = True; optional += 1; continue
-            if not arg.optional and used_optional: raise ValueError('Cant use required args after optional.')
+            if not arg.optional and used_optional: raise OptionError(option_error.POSITIONAL_FIRST)
             required += 1
         return (required, required+optional)
 
     @property
     def _str_params(self) -> str:
-        result = ''
+        result:str = ''
         for i, arg in enumerate(self):
             name = arg.name
-            if not name: name = 'arg'+str(i)
+            if not name: name = DEFAULT_ARG_PLACEHOLDER+str(i)
             if arg.aterisk: result += f' [*{name}]'
             elif arg.optional: result += f' [{name}]'
             else: result += f' {name}'
@@ -218,7 +239,7 @@ def option(short, long):
 
     if type(short) != str or type(long) != str or \
         short == '' or long == '':
-        raise ValueError('Option long and short must be valid nonrepetive strings')
+        raise OptionError(option_error.SHORT_LONG_STR)
 
     def decorator(func):
 
@@ -243,7 +264,7 @@ class _sys_arg_translator(OrderedDict):
         return None
 
     def translate(self) -> None:
-        key = None
+        key:_root_option = None
         for arg in sys.argv[1:]:
 
             if arg.startswith('--'):
@@ -254,21 +275,21 @@ class _sys_arg_translator(OrderedDict):
                 if opt := self.get_short(arg[1:]):
                     key = opt; self[key] = []; continue
                 
-                raise NoTranslationError(f'No option named: {arg}')
+                raise TranslationError(f'No option named: {arg}')
             
             if key in self.keys():
                 self[key].append(arg); continue
 
-            raise NoKeyError(f'No option before value: {arg}')
+            raise TranslationError(f'No option before value: {arg}')
 
     def _check_var_option(self, key, args) -> bool:
         if type(key) == var_option:
             if not key.max_params == -1 and \
                 len(args) > key.max_params:
-                raise ParamError(f'--{key.long} takes {key.max_params} positional ' + \
-                    f'{"arguments" if key.max_params > 1 else "argument"} but ' + \
-                        f'{len(args)} {"was" if len(args) < 2 else "were"} given') 
-            if len(args) < key.min_params: raise ParamError(f'--{key.long} missing {key.min_params-len(args)} ' + \
+                    raise TranslationError(f'--{key.long} takes {key.max_params} positional ' + \
+                        f'{"arguments" if key.max_params > 1 else "argument"} but ' + \
+                            f'{len(args)} {"was" if len(args) < 2 else "were"} given')
+            if len(args) < key.min_params: raise TranslationError(f'--{key.long} missing {key.min_params-len(args)} ' + \
                 f'positional {"arguments" if key.min_params-len(args) > 1 else "argument"}')
             return True
         return False
@@ -278,7 +299,7 @@ class _sys_arg_translator(OrderedDict):
             if not key[i].aterisk:
                 if key[i].vtype != None:
                     try: key[i].set(key[i].vtype(arg)); continue
-                    except: raise ParamError(f'Unable to convert {i+1} param of --{key.long} into {key[i].vtype.__name__}')
+                    except: raise TranslationError(f'Unable to convert {i+1} param of --{key.long} into {key[i].vtype.__name__}')
                 key[i].set(arg)
                 continue
             if key[i].aterisk:
@@ -287,8 +308,8 @@ class _sys_arg_translator(OrderedDict):
 
     def _check_bool_option(self, key) -> bool:
         if type(key) == bool_option:
-            if type(key.var_ptr) != var: raise ValueError
-            if key.var_ptr.vtype not in [bool, None]: raise ValueError
+            if not issubclass(type(key.var_ptr), var): raise OptionError(option_error.NOT_VAR)
+            if key.var_ptr.vtype not in [bool, None]: raise OptionError(option_error.TYPE)
             return True
         return False
 
@@ -310,7 +331,7 @@ class _sys_arg_translator(OrderedDict):
                     func(*args)
                 except TypeError as e:
                     if str(e).split(' ')[0] == func.__name__ + '()':
-                        raise ParamError(f"--{key.long} " + \
+                        raise TranslationError(f"--{key.long} " + \
                             ' '.join([x for i, x in enumerate(str(e).split(' ')) if i != 0]))
                     raise e
 
@@ -323,7 +344,7 @@ def exec() -> None:
     except SystemExit as e:
         sys.exit(e)
 
-    except (NoTranslationError, ParamError, NoKeyError) as e:
+    except TranslationError as e:
         sys.exit(f"{e}" + \
             (f"\n{HELP_NOTE}" if SHOW_HELPNOTE_AFTER_ERROR else ''))
 
@@ -337,17 +358,3 @@ def show_help():
     for o in sorted(_opt_set, key=lambda x: x.short):
         res += '\n' + str(o)
     sys.exit(res)
-
-a = var(10, 'x=10', int, optional=True)
-b = var(10, 'y=10', int, optional=True)
-var_option('a', 'alpha', a, b)
-
-c = var(False)
-bool_option('c', 'charlie', c)
-
-def x():
-    print('hi')
-func_option('b', 'bravo', x)
-
-exec()
-print(a.get()*b.get(), c)
